@@ -1,5 +1,5 @@
 # Capstone-Project_R of Data Science Coursera especialization
-Next word prediction shinyapp with N-Grams models
+Top next thre words prediction shinyapp with N-Grams models
 The link to shinyapp is :
 <https://mimispoke.shinyapps.io/Shiny_Algorithm/>
 The link to presentation of the project is:
