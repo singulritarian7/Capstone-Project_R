@@ -1,0 +1,185 @@
+---
+author: Beatriz Jiménez Franco
+title: "SBO"
+output: 
+  html_document: 
+    keep_md = true
+---
+
+## Capstone Project. N-Gram Generator 
+
+RPubs publication in: <https://rpubs.com/spoke/724212>
+Link to shinyapp: <https://mimispoke.shinyapps.io/Shiny_Algorithm/>
+
+## Load packages
+
+```{r,message=FALSE, warning=FALSE }
+rm(list = ls())
+library(data.table)
+library(sbo)
+```
+
+## Load the text files
+
+```{r,message=FALSE, warning=FALSE }
+
+# A character vector, each element is a line. 
+blog_line <- readLines("final/en_US/en_US.blogs.txt",encoding="UTF-8", skipNul = TRUE)
+news_line <- readLines("final/en_US/en_US.news.txt",encoding="UTF-8", skipNul = TRUE)
+twitter_line <- readLines("final/en_US/en_US.twitter.txt",encoding="UTF-8", skipNul = TRUE)
+```
+
+## Create a sample dataset using 5% each of the .txt files
+
+```{r}
+set.seed(1977) # 20 % training, 80 %
+corpus <- c(blog_line,news_line,twitter_line)
+train_corpus <- corpus[1:667339]
+test_corpus <- corpus[667340:length(corpus)] # it is too large..
+saveRDS(train_corpus, "corpus_train.rds")
+saveRDS(test_corpus, "corpus_test.rds")
+train_c <- readRDS("corpus_train.rds")
+test_c <- readRDS("corpus_test.rds")
+train_c[[1]]
+saveRDS(train_c, "train_c.rds")
+test_c <- readRDS("corpus_test.rds")
+rm(list=c("test_corpus", "train_corpus"))
+
+```
+
+## Remove the following objets to save memory
+
+```{r}
+rm(list=c("blog_line","news_line","twitter_line"))
+rm(list=c("corpus"))
+```
+
+
+## Create dictionary (no se guarda con cada sesión)
+
+```{r}
+dictionary <- sbo_dictionary(corpus = train_c, 
+                       #target = 0.75, 
+                       max_size = 1000, 
+                       .preprocess = sbo::preprocess,
+                       EOS = ".?!:;")
+saveRDS(dictionary, "dictio.rds")
+dict <- readRDS("dictio.rds")
+saveRDS(dict, "dict.rds")
+remove(list=c("dictionary"))
+```
+
+
+## Word Coverage Fraction (summary and plot)
+
+```{r, eval =FALSE}
+c <- word_coverage(dict, train_c)
+summary(c)
+plot(c, include_EOS = TRUE)
+```
+
+## Create a p object (no se guarda como rds)
+
+
+```{r, eval =FALSE}
+p <- sbo_predictor(object = train_c, # preloaded example dataset
+                   N = 3, # Train a 3-gram model
+                   dict = dict, # cover 72% of training corpus
+                   .preprocess = sbo::preprocess, # Preprocessing transformation 
+                   EOS = ".?!:;", # End-Of-Sentence tokens
+                   lambda = 0.4, # Back-off penalization in SBO algorithm
+                   L = 3L, # Number of predictions for input
+                   filtered = c("<UNK>", "<EOS>") # Exclude the <UNK> token from predictions
+                   )
+```
+
+## Predict next word with p object 
+
+```{r, eval=FALSE}
+predict(p, "i love");
+```
+
+## Create a t object (se gyarda como rds )
+
+```{r}
+tobject <- sbo_predtable(object = train_c, # preloaded example dataset
+                   N = 3, # Train a 3-gram model
+                   dict = dict, # cover 75% of training corpus
+                   .preprocess = sbo::preprocess, # Preprocessing transformation 
+                   EOS = ".?!:;", # End-Of-Sentence tokens
+                   lambda = 0.4, # Back-off penalization in SBO algorithm
+                   L = 3L, # Number of predictions for input
+                   filtered = c("<UNK>", "<EOS>") # Exclude the <UNK> token from predictions
+                   )
+
+saveRDS(tobject, "t.rds")
+tpred <- readRDS("t.rds")
+rm(list=c("tobject"))
+summary(tpred)
+head(tpred[[1]]); head(tpred[[2]]) ; head(tpred[[3]])
+saveRDS(tpred, "tpred.rds")
+```
+
+## 
+
+```{r}
+p <- sbo_predictor(tpred)# This is the same as 'p' created above
+predict(p, "i love")
+
+```
+
+## Ceatin f object (guardar como rds)
+
+```{r}
+freqs <- kgram_freqs_fast(train_c, N = 3, dict = dict,
+                          erase = "[^.?!:;'\\w\\s]", lower_case = TRUE,
+                          EOS = ".?!:;")
+
+freqs # clase "sbo_kgram_freqs"
+summary(freqs)
+head(freqs) # 3 tablas o datframe cada elemento de la lista
+saveRDS(freqs, "f.rds")
+fpred <- readRDS("f.rds")
+fpred
+summary(fpred)
+rm(list=c("freqs"))
+saveRDS(fpred,"fpred.rds")
+```
+
+## Predict words with probabilities
+
+```{r}
+predict(fpred, "i love") # data.frame, table
+#> # A tibble: 1,009 x 2
+#>    completion probability
+#>    <chr>            <dbl>
+#>  1 you             0.222 
+#>  2 it              0.0573
+#>  3 my              0.0549
+#>  4 the             0.0524
+#>  5 your            0.0312
+#>  6 this            0.0312
+#>  7 that            0.0287
+#>  8 how             0.0249
+#>  9 u               0.0175
+#> 10 when            0.0150
+#> # … with 999 more rows
+```
+
+##  Continuar...
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
